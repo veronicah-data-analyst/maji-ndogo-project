@@ -48,45 +48,57 @@ SELECT * FROM water_quality;
 -- From the data dictionary, we know that where water qulaity was good (10) the serveyors did not make a second visit. 
 -- they also only revisited shared taps 
 -- Let's check if a source with good quality got multiple visists
+-- You find out that a 218 taps in home were visited twice!!
 
-SELECT count(*)
+SELECT *
 FROM water_quality
 WHERE subjective_quality_score = 10
-AND visit_count >=2;
+AND visit_count = 2;
 
-SELECT count(*)
-FROM water_quality
-WHERE subjective_quality_score = 10
-AND visit_count >=2;
+-- this should not be happening! I think some of our employees may have made mistakes.
+-- To be honest, I'll be surprised if there are no errors in our data at this scale!
     
+-- Investigating pollution issues  
+-- View well pollution data 
 SELECT * 
 FROM well_pollution 
 LIMIT 5;
     
+-- Some wells are contaminated with biological contaminants, while others are polluted with an excess of heavy metals and other pollutants.
+-- Based on the results, each well was classified as Clean, Contaminated: Biological or Contaminated: Chemical.
+-- It is important to know this because wells that are polluted with bio- or other contaminants are not safe to drink. 
+-- The source_id of each test was recorded, so we can link it to a source, at some place in Maji Ndogo.
+
+-- Let's check the integrity of the data. The worst case is if we have contamination, but we think we don't. 
+-- People can get sick, so we need to make sure there are no errors here.
+-- we just need to make sure that if a source result is clean, biological column is 0 and anything above 0.01 is contaminated and not safe
+
+-- let's check if a contaminated source was labled clean, we have some trouble here
 SELECT *
 FROM well_pollution 
 	WHERE results="Clean" 
 	AND biological > 0.01
 LIMIT 10;
 
+-- But if we scroll the data, we see human error. Someone used the description column to determine if water was clean. 
+-- That's why maybe water with biological > 0.01 is labled clean. Let's fix that 
+
+-- We need to find and remove the “Clean” part from all the descriptions that do have a biological contamination 
+-- so this mistake is not made again.
+-- We need also to find all the results that have a value greater than 0.01 in the biological column 
+-- and have been set to Clean in the results column
+
+-- Records that mistakenly have the word Clean in the description
 SELECT *
 FROM well_pollution
 WHERE description LIKE "Clean_%";
 
-UPDATE well_pollution 
-SET description ="Bacteria: E. coli"
-WHERE description ="Clean Bacteria: E. coli";
+-- Looking at the results we can see two different descriptions that we need to fix:
+-- 1. All records that mistakenly have Clean Bacteria: E. coli should updated to Bacteria: E. coli
+-- 2. All records that mistakenly have Clean Bacteria: Giardia Lamblia should updated to Bacteria: Giardia Lamblia
+-- 3. We need to update the results column from Clean to Contaminated: Biological where the biological column has a value greater than 0.01.
 
-SET SQL_SAFE_UPDATES = 0;
-
-UPDATE well_pollution 
-SET description ="Bacteria: Giardia Lamblia"
-WHERE description ="Clean Bacteria: Giardia Lamblia";
-
-UPDATE well_pollution 
-SET results = "Contaminated: Biological"
-WHERE biological >0.01;
-
+-- I don't want to mess up the data. Let me create a copy of the table and play with it ... hahahah I am not always like this I promise
 CREATE TABLE 
 md_water_services.well_pollution_copy
 AS(
@@ -96,83 +108,80 @@ FROM
 md_water_services.well_pollution
 );
 
+-- let me if there is something in this table.. The mistake I checked on the main data, and it is there, so we're good 
+SELECT *
+FROM well_pollution_copy
+WHERE description LIKE "Clean_%";
+
+-- updating the copy table 
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE
+well_pollution_copy
+SET
+description = 'Bacteria: E. coli'
+WHERE
+description = 'Clean Bacteria: E. coli';
+
+UPDATE
+well_pollution_copy
+SET
+description = 'Bacteria: Giardia Lamblia'
+WHERE
+description = 'Clean Bacteria: Giardia Lamblia';
+
+UPDATE
+well_pollution_copy
+SET
+results = 'Contaminated: Biological'
+WHERE
+biological > 0.01 AND results = 'Clean';
+
+SET SQL_SAFE_UPDATES = 1;
+
+-- check if the errors are fixed 
 SELECT
 *
-FROM 
+FROM
+well_pollution_copy
+WHERE
+description LIKE "Clean_%"
+OR (results = "Clean" AND biological > 0.01);
+
+-- There are no errors in our copy table. Let's update our main table and but first, drop the copy table
+-- We have seen what we needed to see.
+
+DROP TABLE
 md_water_services.well_pollution_copy;
 
+-- updating the main table
+SET SQL_SAFE_UPDATES = 0;
+
+UPDATE well_pollution 
+SET description ="Bacteria: E. coli"
+WHERE description ="Clean Bacteria: E. coli";
+
+UPDATE well_pollution 
+SET description ="Bacteria: Giardia Lamblia"
+WHERE description ="Clean Bacteria: Giardia Lamblia";
+
+UPDATE well_pollution 
+SET results = "Contaminated: Biological"
+WHERE biological >0.01;
+
+SET SQL_SAFE_UPDATES = 1;
+
+-- just confirm one last time we don't have errors any more
 SELECT 
 *
 FROM
-md_water_services.well_pollution_copy
+well_pollution
 WHERE 
 description LIKE "Clean_%"
 OR (RESULTS ="Clean" AND biological>0.01);
 
-SELECT address
-FROM employee
-WHERE employee_name ="Bello Azibo";
-
-SELECT 
-* 
-FROM water_source;
-
-SELECT 
-employee_name, phone_number
-FROM employee 
-WHERE position="Micro Biologist";
-
-SELECT source_id
-FROM water_source
-WHERE number_of_people_served = (SELECT MAX(number_of_people_served) FROM water_source);
 
 
-SELECT table_name, column_name
-FROM data_dictionary
-WHERE description LIKE '%population%';
-
-
-SELECT pop_n
-FROM global_water_access
-WHERE name = 'Maji Ndogo';
-
-CREATE TEMPORARY TABLE tmp_last_names AS
-SELECT SUBSTRING_INDEX(employee_name, ' ', -1) AS last_name
-FROM employee;
-
-SELECT *
-FROM your_table_name
-WHERE last_name IN (SELECT last_name FROM tmp_last_names);
-
-SELECT *
-FROM employee
-WHERE 
-    phone_number LIKE "%86%" OR phone_number LIKE "%11%"
-	AND employee_name IN (SELECT last_name FROM tmp_last_names)
-    AND position = "Field Surveyor";
-    
-SELECT *
-FROM employee
-WHERE
-    (phone_number LIKE '%86%' OR phone_number LIKE '%11%')
-    AND (SUBSTRING_INDEX(employee_name, ' ', -1) LIKE 'A%' OR SUBSTRING_INDEX(employee_name, ' ', -1) LIKE 'M%')
-    AND position = 'Field Surveyor';
-
-SELECT *
-FROM well_pollution
-WHERE description LIKE 'Clean_%' OR results = 'Clean' AND biological < 0.01;
-
-SELECT * FROM water_quality WHERE visit_count >= 2 AND subjective_quality_score = 10;
-SELECT * FROM water_quality WHERE visit_count > 1 AND subjective_quality_score > 10;
-SELECT * FROM water_quality WHERE visit_count = 2 OR subjective_quality_score = 10;
-SELECT * FROM water_quality WHERE visit_count = 2 AND subjective_quality_score = 10;
-    
-   
-SELECT * 
-FROM well_pollution
-WHERE description
-IN ('Parasite: Cryptosporidium', 'biologically contaminated')
-OR (results = 'Clean' AND biological > 0.01);
   
     
     
