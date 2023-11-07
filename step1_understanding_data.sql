@@ -1,19 +1,60 @@
+-- choosing the database to use 
 USE md_water_services;
+-- 1. Get to know data:
+-- Start by retrieving the first few records from each table.
+-- How many tables are there in our database? What are the names of these tables?
+-- What information does each table contain?
+
+-- show all the tables in the database for easy understanding and exploration 
 SHOW TABLES;
-SELECT * FROM location LIMIT 5;
-SELECT  * FROM visits;
-SELECT  * FROM water_source LIMIT 5;
+
+-- using that killer query, SELECT * but remembering to limit it
+SELECT * FROM location LIMIT 3;
+SELECT * FROM visits LIMIT 5;
+SELECT * FROM water_source LIMIT 5;
+
+-- this query give the uniques water sources available 
 SELECT DISTINCT type_of_water_source FROM water_source;
+
+-- NOTE!!!!
+-- An important note on the home taps: About 6-10 million people have running water installed in their homes in Maji Ndogo, including
+-- broken taps. If we were to document this, we would have a row of data for each home, so that one record is one tap. That means our
+-- database would contain about 1 million rows of data, which may slow our systems down. For now, the surveyors combined the data of
+-- many households together into a single record.
+
+-- For example, the first record, AkHa00000224 is for a tap_in_home that serves 956 people. What this means is that the records of about
+-- 160 homes nearby were combined into one record, with an average of 6 people living in each house 160 x 6  956. So 1 tap_in_home
+-- or tap_in_home_broken record actually refers to multiple households, with the sum of the people living in these homes equal to number_
+-- of_people_served.
+
+-- LET'S RUN THE QUERY AGAIN FOR WATER SOURCES 
+SELECT * FROM water_source LIMIT 5;
+
+-- Retrieve  all records from this table where the time_in_queue is more than some crazy time, say 500 min.
+-- How does it feel to queue 8 hours for water?
 SELECT * FROM visits WHERE time_in_queue >= 500;
-SELECT source_id, type_of_water_source, number_of_people_served FROM water_source WHERE source_id="AkRu05234224" OR source_id="HaZa21742224";
+
+-- I am wondering what type of water sources take this long to queue for. Let's find out using some IDs from the above query 
+
+SELECT source_id, type_of_water_source, number_of_people_served 
+FROM water_source 
+WHERE source_id="AkKi00881224" OR source_id="HaZa21742224";
+
+-- Let's assess the quality of water sources: The quality of our water sources is the whole point of this survey.
+-- But we should first see the table and its data 
 SHow COLUMNS FROM water_quality;
 SELECT * FROM water_quality;
-SELECT * FROM water_quality, water_source, visits WHERE subjective_quality_score =10 AND type_of_water_source="tap_in_home";
-SELECT *
-FROM water_quality, water_source
+
+-- From the data dictionary, we know that where water qulaity was good (10) the serveyors did not make a second visit. 
+-- they also only revisited shared taps 
+-- Let's check if a source with good quality got multiple visists
+
+SELECT count(*)
+FROM water_quality
 WHERE subjective_quality_score = 10
-AND type_of_water_source="tap_in_home"
-AND visit_count =2;
+AND visit_count >=2;
+
+
     
 SELECT * 
 FROM well_pollution 
