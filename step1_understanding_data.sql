@@ -54,7 +54,10 @@ FROM water_quality
 WHERE subjective_quality_score = 10
 AND visit_count >=2;
 
-
+SELECT count(*)
+FROM water_quality
+WHERE subjective_quality_score = 10
+AND visit_count >=2;
     
 SELECT * 
 FROM well_pollution 
