@@ -172,12 +172,6 @@ WHERE temp.province_name IS NULL;
 DROP TEMPORARY TABLE IF EXISTS temp_town_aggregated;
 
 
-
-
-
-
-
-
 SELECT
 province_name,
 town_name,
