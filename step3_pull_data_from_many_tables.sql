@@ -1,8 +1,10 @@
 USE md_water_services;
-SELECT * FROM auditor_report;
-SELECT * FROM visits;
-SELECT * FROM water_quality;
 
+-- import the auditors table. It is saved as a csv file 
+-- view the data saved by the auditor
+SELECT * FROM auditor_report;
+
+-- where employee score and the auditors qualty score did not match 
 SELECT
     ar.location_id AS audit_location,
      v.record_id,
@@ -27,6 +29,8 @@ AND
 ar.true_water_source_score-wq.subjective_quality_score<>0
 LIMIT 10000;
 
+
+-- Where the quality scores of water matched 
 SELECT
      ar.location_id AS audit_location,
     ws.type_of_water_source,
@@ -51,6 +55,8 @@ WHERE
     v.visit_count = 1
     AND ar.true_water_source_score = wq.subjective_quality_score;
 
+-- creating a CTE 
+-- it makes the code easy to read and understand 
 WITH incorrect_records AS (
 SELECT 
      ar.location_id AS audit_location,
@@ -82,13 +88,13 @@ WHERE
     v.visit_count = 1
     AND ar.true_water_source_score <>wq.subjective_quality_score
 )
-
 SELECT DISTINCT employee_name
 FROM incorrect_records;
 
 SELECT DISTINCT employee_name
 FROM incorrect_records;
 
+-- counting the number of mistakes made by each employee
 SELECT employee_name, COUNT(*) AS mistake_count
 FROM (
     SELECT 
@@ -123,7 +129,7 @@ FROM (
 GROUP BY employee_name
 ORDER BY mistake_count DESC;
 
-
+-- Getting the average number of mistakes made by employees
 SELECT AVG(mistake_count) AS avg_error_count_per_empl
 FROM (
     SELECT employee_name, COUNT(*) AS mistake_count
@@ -160,7 +166,7 @@ FROM (
 GROUP BY employee_name
 ) AS mistake_count;
 
-
+-- just another long query to get the name of employee and thier number of mistakes 
 SELECT employee_name, COUNT(*) AS mistake_count
 FROM (
     SELECT 
@@ -233,6 +239,7 @@ HAVING mistake_count > (
 ORDER BY mistake_count DESC;
 
 
+-- Creating a view 
 CREATE VIEW incorrect_records AS (
 SELECT
 auditor_report.location_id,
@@ -257,6 +264,7 @@ visits.visit_count =1
 AND auditor_report.true_water_source_score != wq.subjective_quality_score);
 
 
+-- Another CTE to calculate the average number of mistakes 
 WITH error_count AS (
     SELECT 
         employee_name,
@@ -270,6 +278,7 @@ WITH error_count AS (
 SELECT AVG(number_of_mistakes) AS average_mistakes FROM error_count;
 
 
+-- counting errors with a CTE
 WITH error_count AS (
     SELECT 
         employee_name,
@@ -283,7 +292,8 @@ SELECT employee_name, mistake_count
 FROM error_count
 WHERE mistake_count < (SELECT AVG(mistake_count) FROM error_count);
 
-
+-- let's get our suspects 
+-- the count errors were bigger than average 
 WITH error_count AS (
     SELECT 
         employee_name,
@@ -303,6 +313,7 @@ SELECT employee_name, mistake_count
 FROM suspect_list;
 
 
+-- CTE to get more details on the errors made
 WITH error_count AS (
     SELECT 
         employee_name,
@@ -354,6 +365,8 @@ suspect_list AS (
 SELECT *
 FROM Incorrect_records
 WHERE employee_name IN (SELECT employee_name FROM suspect_list);
+
+
 
 WITH error_count AS ( -- This CTE calculates the number of mistakes each employee made
 SELECT
@@ -437,7 +450,9 @@ FROM Incorrect_records
 WHERE employee_name NOT IN (SELECT employee_name FROM suspect_list)
 AND statements LIKE '%cash%';
 
-/* The Real Exam */
+
+
+-- I did an Exam 
 SELECT
     auditorRep.location_id,
     visitsTbl.record_id,
@@ -468,7 +483,6 @@ ON visitsTbl.record_id = wq.record_id
 JOIN employee as Empl_Table
 ON Empl_Table.assigned_employee_id = visitsTbl.assigned_employee_id
 WHERE visitsTbl.visit_count =1 AND auditorRep.true_water_source_score != wq.subjective_quality_score)
-
 SELECT
     employee_name,
     count(employee_name)
